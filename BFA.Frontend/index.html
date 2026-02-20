@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BF Analyzer | Intelligence Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #060a11; color: #e2e8f0; overflow-x: hidden; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .glass { background: rgba(13, 20, 33, 0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .accent-gradient { background: linear-gradient(135deg, #2563eb 0%, #10b981 100%); }
+        
+        .scanner {
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+            position: absolute;
+            width: 100%;
+            z-index: 20;
+            animation: scan 2.5s infinite ease-in-out;
+        }
+        @keyframes scan { 0% { top: 0%; opacity: 0; } 50% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+
+        select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1em; }
+        
+        /* Estilos para que el reporte de la IA sea legible */
+        .report-content h3 { color: #3b82f6; font-weight: 700; margin-top: 1.5rem; margin-bottom: 0.5rem; font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; border-bottom: 1px solid rgba(59, 130, 246, 0.2); padding-bottom: 4px; }
+    </style>
+</head>
+<body class="p-4 md:p-10">
+    <div id="app" class="max-w-7xl mx-auto">
+        
+        <nav class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+            <div class="flex items-center space-x-4">
+                <div class="w-12 h-12 accent-gradient rounded-2xl flex items-center justify-center shadow-lg shadow-blue-900/20">
+                    <span class="text-white font-bold text-2xl tracking-tighter">BF</span>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight text-white uppercase">BF Analyzer <span class="text-blue-500 font-light">Core</span></h1>
+                    <p class="text-[10px] mono text-slate-500 tracking-widest uppercase">Caffeine Detected // System Ready</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3 bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800">
+                <div class="px-4 py-2 rounded-xl bg-slate-800 text-[10px] mono text-blue-400 border border-slate-700">
+                    SYSTEM_LINK: <span class="text-emerald-400 animate-pulse">ESTABLISHED</span>
+                </div>
+            </div>
+        </nav>
+
+        <main class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            <aside class="lg:col-span-4 space-y-6">
+                <div class="glass p-8 rounded-[2rem] relative overflow-hidden shadow-2xl border border-slate-800/50">
+                    <div v-if="loading" class="scanner"></div>
+                    <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mono mb-8 flex items-center">
+                        <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span> Campos de entrada
+                    </h2>
+                    
+                    <div class="space-y-5 relative z-10">
+                        <div>
+                            <label class="block text-[10px] text-slate-500 mb-2 uppercase mono font-bold">Descripción de conceptos</label>
+                            <textarea v-model="form.idea" rows="4" lang="es" class="w-full bg-slate-900/40 border border-slate-800 rounded-2xl p-4 focus:border-blue-500/50 outline-none transition-all text-sm resize-none" placeholder="Describe tu idea..."></textarea>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <input v-model="form.targetName" type="text" class="w-full bg-slate-900/40 border border-slate-800 rounded-xl p-3 text-sm" placeholder="Item">
+                            <select v-model="form.offeringType" class="w-full bg-slate-900/40 border border-slate-800 rounded-xl p-3 text-sm text-slate-300">
+                                <option value="Producto">PRODUCTO</option>
+                                <option value="Servicio">SERVICIO</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <input v-model="form.location" type="text" class="w-full bg-slate-900/40 border border-slate-800 rounded-xl p-3 text-sm" placeholder="Ubicación">
+                            <input v-model="form.industry" type="text" class="w-full bg-slate-900/40 border border-slate-800 rounded-xl p-3 text-sm" placeholder="Industria">
+                        </div>
+                        <button @click="analyze" :disabled="loading" class="w-full accent-gradient hover:scale-[1.02] active:scale-[0.98] text-white font-bold py-5 rounded-2xl transition-all shadow-xl mt-4 flex items-center justify-center disabled:opacity-50">
+                            <span v-if="!loading" class="tracking-widest text-xs">ANALIZAR</span>
+                            <span v-else class="mono animate-pulse text-xs">PROCESANDO...</span>
+                        </button>
+                    </div>
+                </div>
+            </aside>
+
+            <section class="lg:col-span-8 space-y-6">
+                <div v-if="!result && !loading" class="h-full min-h-[400px] flex flex-col items-center justify-center border-2 border-dashed border-slate-800/50 rounded-[2.5rem] bg-slate-900/10 text-slate-600">
+                    <p class="mono text-[10px] tracking-[0.3em] uppercase">Esperando por secuencia de análisis...</p>
+                </div>
+
+                <div v-if="result || loading" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="glass p-6 rounded-[1.5rem] border-l-4 border-blue-500 shadow-xl">
+                            <p class="text-[10px] text-slate-500 uppercase mono font-bold mb-2">Feasibility_Index</p>
+                            <p class="text-4xl font-bold tracking-tighter" :class="scoreColor">{{ score }}%</p>
+                            <div class="w-full bg-slate-800 h-1.5 rounded-full mt-4 overflow-hidden">
+                                <div class="h-full accent-gradient transition-all duration-1000" :style="{ width: score + '%' }"></div>
+                            </div>
+                        </div>
+                        <div class="glass p-6 rounded-[1.5rem] border-l-4 border-emerald-500">
+                            <p class="text-[10px] text-slate-500 uppercase mono font-bold mb-2">Market_Momentum</p>
+                            <p class="text-2xl font-bold text-emerald-400 tracking-tight uppercase">{{ trendText }}</p>
+                            <p class="text-[9px] text-slate-600 mono mt-2 uppercase">Signal: Real-time</p>
+                        </div>
+                        <div class="glass p-6 rounded-[1.5rem] border-l-4 border-slate-600">
+                            <p class="text-[10px] text-slate-500 uppercase mono font-bold mb-2">AI_Confidence</p>
+                            <p class="text-2xl font-bold text-white tracking-tight">92.4%</p>
+                            <p class="text-[9px] text-slate-600 mono mt-2 uppercase">Neural_Check: OK</p>
+                        </div>
+                    </div>
+
+                    <div class="glass p-8 rounded-[2rem] shadow-2xl flex flex-col min-h-[350px]">
+                        <h3 class="text-[10px] font-bold text-slate-500 uppercase mono mb-6 flex justify-between items-center">
+                            <span><span class="text-blue-500 mr-2">●</span>Volúmen de busqueda</span>
+                            <span class="bg-slate-800 px-3 py-1 rounded text-[9px] text-slate-400 uppercase tracking-widest">Línea de tiempo: Últimos 6 meses</span>
+                        </h3>
+                        <div class="flex-grow">
+                            <canvas id="trendsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div v-if="result || loading" class="lg:col-span-12 mt-4">
+                <div class="glass p-10 rounded-[2.5rem] shadow-2xl border border-slate-800/30">
+                    <div class="flex items-center space-x-3 mb-10 border-b border-slate-800 pb-6">
+                        <div class="w-2 h-8 bg-blue-500 rounded-full"></div>
+                        <h3 class="text-xs font-bold text-white uppercase mono tracking-[0.4em]">Reporte de análisis</h3>
+                        <span class="ml-auto text-[10px] text-slate-600 mono">FEBRERO_2026</span>
+                    </div>
+                    
+                    <div class="report-content mono text-sm md:text-base leading-relaxed text-slate-300">
+                        <div v-if="loading" class="animate-pulse space-y-4">
+                            <div class="h-4 bg-slate-800 rounded w-3/4"></div>
+                            <div class="h-4 bg-slate-800 rounded w-full"></div>
+                        </div>
+                        <div class="whitespace-pre-wrap">{{ result }}</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="mt-12 mb-6 text-center text-slate-700 mono text-[9px] uppercase tracking-[0.4em]">
+            BF Analyzer // Neural Processing Unit // &copy; 2026
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
